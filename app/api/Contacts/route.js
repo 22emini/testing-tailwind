@@ -2,7 +2,7 @@ import Contact from "../../(models)/Contact";
 import { NextResponse } from "next/server";
 import dbConnect from "../../../lib/db";
 
-export const maxDuration = 300; // Set maximum duration to 5 minutes
+export const maxDuration = 60; // Set maximum duration to 60 seconds (Vercel Hobby plan limit)
 
 export async function GET() {
     try {
@@ -11,6 +11,7 @@ export async function GET() {
         const contacts = await Contact.find({})
             .select('name email phone createdAt')
             .sort({ createdAt: -1 })
+            .limit(100)  // Add a reasonable limit to prevent timeout
             .lean()  // Convert to plain JavaScript objects
             .exec();
         
