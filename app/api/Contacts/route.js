@@ -2,15 +2,23 @@ import Contact from "../../(models)/Contact";
 import { NextResponse } from "next/server";
 import dbConnect from "../../../lib/db";
 
+export const maxDuration = 300; // Set maximum duration to 5 minutes
+
 export async function GET() {
     try {
         await dbConnect();
-        const contacts = await Contact.find({}).sort({ createdAt: -1 });
+        // Only fetch necessary fields and limit the number of results if needed
+        const contacts = await Contact.find({})
+            .select('name email phone createdAt')
+            .sort({ createdAt: -1 })
+            .lean()  // Convert to plain JavaScript objects
+            .exec();
+        
         return NextResponse.json(contacts);
     } catch (error) {
         console.error('Error fetching contacts:', error);
         return NextResponse.json(
-            { error: error.message },
+            { error: 'Failed to fetch contacts' },
             { status: 500 }
         );
     }
@@ -18,30 +26,31 @@ export async function GET() {
 
 export async function POST(req) {
     try {
-        // Connect to the database
         await dbConnect();
         
         const body = await req.json();
-        console.log('Received request body:', body); // Debug log
+        console.log('Received request body:', body);
         
-        // Remove the formData nesting since we're sending the data directly
         const contactData = body;
-        console.log('Contact data:', contactData); // Debug log
         
         if (!contactData) {
-            throw new Error('No contact data provided');
+            return NextResponse.json(
+                { error: 'No contact data provided' },
+                { status: 400 }
+            );
         }
 
-        // Ensure all required fields are present
         const requiredFields = ['name', 'phone', 'email'];
         const missingFields = requiredFields.filter(field => !contactData[field]);
         
         if (missingFields.length > 0) {
-            throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+            return NextResponse.json(
+                { error: `Missing required fields: ${missingFields.join(', ')}` },
+                { status: 400 }
+            );
         }
 
         const contact = await Contact.create(contactData);
-        console.log('Created contact:', contact); // Debug log
 
         return NextResponse.json(
             { message: "Contact created", contact },
@@ -50,10 +59,7 @@ export async function POST(req) {
     } catch (err) {
         console.error('Error in API route:', err);
         return NextResponse.json(
-            { 
-                error: err.message,
-                details: err.toString()
-            },
+            { error: 'Failed to create contact' },
             { status: 500 }
         );
     }
